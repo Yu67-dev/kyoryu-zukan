@@ -836,6 +836,32 @@ bgmBtn.addEventListener("click", ()=>{
   if(bgmOn) bgmStart(); else bgmStop();
 });
 
+/* ================= 画面が隠れたら音を止める =================
+   タブを切り替えた・別アプリで遊び始めた・画面を消した ときに
+   BGMと声が鳴り続けないようにする。戻ってきたら鳴り直す。
+
+   ・スケジューラ(setInterval)を止めないと、止めた間の音符が溜まって
+     復帰時にまとめて鳴る。suspend() だけでは足りない。
+   ・booted＝「タッチして はじめる！」を押したかどうか。
+     これが無いと、開いてすぐ他アプリへ行って戻っただけで曲が始まってしまう。 */
+let booted = false;
+function audioSleep(){
+  stopVoice();
+  bgmStop();
+  try{ if(AC && AC.state === "running") AC.suspend(); }catch(e){}
+}
+function audioWake(){
+  if(!booted || !AC) return;
+  try{ if(AC.state === "suspended") AC.resume(); }catch(e){}
+  if(bgmOn && !bgmTimer) bgmStart();
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) audioSleep(); else audioWake();
+});
+/* iOSでアプリを閉じる・別ページへ移るとき（visibilitychangeが来ないことがある） */
+addEventListener("pagehide", audioSleep);
+addEventListener("freeze", audioSleep);
+
 /* ================= かみふぶき ================= */
 const cvs = document.getElementById("confetti"), ctx = cvs.getContext("2d");
 let parts = [], confettiRAF = null;
@@ -886,6 +912,7 @@ function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.fl
 /* ================= はじめの画面（音の解錠） ================= */
 el("splash-start").addEventListener("click", ()=>{
   ac(); sfx.tap();
+  booted = true;                 /* 以後、画面に戻ってきたらBGMを鳴らし直してよい */
   el("splash").classList.add("off");
   if(bgmOn) bgmStart();
   playClips(["welcome"]);
