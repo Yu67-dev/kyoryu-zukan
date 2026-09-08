@@ -282,7 +282,7 @@
   <div class="bug">🦕</div>
   <h1>きょうりゅうずかん</h1>
   <button class="start" id="splash-start">タッチして はじめる！</button>
-  <div class="note">🔊 おとが でるよ（おんりょうを あげてね）｜v2</div>
+  <div class="note">🔊 おとが でるよ（おんりょうを あげてね）｜v3</div>
 </div>
 
 <!-- ホーム -->
@@ -341,7 +341,7 @@
   </div>
   <div class="bugs-row">🦕🦖🥚🦴🌋</div>
   <div class="credit">え：Wikimedia Commons（ふくげんず・CC BY／CC BY-SA・さくしゃは README に きさい）<br>
-    こえ：VOICEVOX:ずんだもん｜おんがく：オリジナル｜v2・きょうりゅう30しゅるい・ゲーム12しゅるい</div>
+    こえ：VOICEVOX:ずんだもん｜おんがく：オリジナル｜v3・きょうりゅう30しゅるい・ゲーム12しゅるい</div>
 </div>
 
 <!-- ずかん -->
@@ -550,7 +550,7 @@
    そのままだと直しても古い版が出続けて「更新されない」ことになるので、
    サーバの version.txt（数バイト）だけをキャッシュ無しで見に行って比べる。
    ちがっていたら画面の上に こうしんボタン を出す。 */
-const VERSION = "v2";
+const VERSION = "v3";
 (function checkUpdate(){
   if(location.protocol === "file:") return;   /* ファイルをコピーして遊ぶときは確認しない */
   fetch("version.txt?t=" + Date.now(), { cache:"no-store" })
@@ -582,10 +582,15 @@ const byId = Object.fromEntries(DINOS.map(x=>[x.id,x]));
 
 /* ================= おと（効果音） ================= */
 let AC = null;
+/* sleeping＝画面が隠れている間は true。
+   声の先読み(warmVoices)は40msごとに ac() を呼ぶので、この見張りが無いと
+   音を止めた直後に先読みが音声エンジンを起こし直してしまい、
+   別アプリに移ってもBGMが鳴り続ける（起動から十数秒は必ずこうなる）。 */
+let sleeping = false;
 function ac(){
   try{
     if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
-    if(AC.state === "suspended") AC.resume();
+    if(AC.state === "suspended" && !sleeping) AC.resume();
   }catch(e){}
   return AC;
 }
@@ -880,11 +885,13 @@ bgmBtn.addEventListener("click", ()=>{
      これが無いと、開いてすぐ他アプリへ行って戻っただけで曲が始まってしまう。 */
 let booted = false;
 function audioSleep(){
+  sleeping = true;
   stopVoice();
   bgmStop();
   try{ if(AC && AC.state === "running") AC.suspend(); }catch(e){}
 }
 function audioWake(){
+  sleeping = false;
   if(!booted || !AC) return;
   try{ if(AC.state === "suspended") AC.resume(); }catch(e){}
   if(bgmOn && !bgmTimer) bgmStart();
